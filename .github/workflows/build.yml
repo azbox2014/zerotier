@@ -2,11 +2,9 @@ name: Build ZeroTierOne Image (Tag)
 
 on:
   workflow_dispatch:
-    inputs:
-      VERSION:
-        description: "ZeroTierOne VERSION (e.g. 1.14.0)"
-        required: true
-        default: "1.14.0"
+  pull_request:
+    branches:
+    - "main"
 
 env:
   REGISTRY: ghcr.io
@@ -27,9 +25,12 @@ jobs:
       # 2️⃣ Clone ZeroTierOne tag
       # =========================
       - name: Clone ZeroTierOne
+        id: info
         run: |
           git clone https://github.com/zerotier/ZeroTierOne.git
           cd ZeroTierOne
+          tag=$(git tag | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          echo "tag=${tag}" >> $GITHUB_OUTPUT
 
       # ======================
       # 3️⃣ QEMU (multi-arch)
@@ -43,28 +44,56 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      # ======================
-      # 5️⃣ Login registry
-      # ======================
-      - name: Login to GHCR
+      - name: Log in to GitHub Docker Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.AGH_TOKEN }}
+          password: ${{ secrets.GH_TOKEN }}
+          logout: false
+
+      - name: Log in to DockerHub Registry
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Log in to ACR Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_REGISTY }}
+          username: ${{ secrets.ACR_USER }}
+          password: ${{ secrets.ACR_PASS }}
+
+      - name: Log in to QCR Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.QCR_REGISTRY }}
+          username: ${{ secrets.QCR_USER }}
+          password: ${{ secrets.QCR_PASS }}
 
       # ======================
       # 6️⃣ Build & Push multi-arch
       # ======================
       - name: Build and Push
         uses: docker/build-push-action@v5
+        if: ${{ steps.info.outputs.tag != '' && steps.info.outputs.tag != null }}
         with:
           context: ZeroTierOne
           file: ZeroTierOne/Dockerfile.release
           push: true
           platforms: linux/amd64,linux/arm64
           build-args: |
-            VERSION=${{ inputs.VERSION }}
+            VERSION=${{ steps.info.outputs.tag }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/zerotier-one:${{ inputs.VERSION }}
+            ghcr.io/${{ github.repository_owner }}/zerotier-one:${{ steps.info.outputs.tag }}
             ghcr.io/${{ github.repository_owner }}/zerotier-one:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/zerotier-one:${{ steps.info.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/zerotier-one:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/zerotier-one:${{ github.sha }}
+            registry.cn-beijing.aliyuncs.com/osc-org/zerotier-one:${{ steps.info.outputs.tag }}
+            registry.cn-beijing.aliyuncs.com/osc-org/zerotier-one:latest
+            ccr.ccs.tencentyun.com/osc-org/zerotier-one:${{ steps.info.outputs.tag }}
+            ccr.ccs.tencentyun.com/osc-org/zerotier-one:latest
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/zerotier-one:cache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/zerotier-one:cache,mode=max
