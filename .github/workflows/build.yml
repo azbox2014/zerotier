@@ -6,7 +6,6 @@ on:
       VERSION:
         description: "ZeroTierOne VERSION (e.g. 1.14.0)"
         required: false
-        default: "1.14.0"
 
   pull_request:
     branches:
