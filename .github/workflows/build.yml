@@ -35,7 +35,6 @@ jobs:
       # =========================
       - name: Clone ZeroTierOne
         run: |
-          set -x
           git clone https://github.com/zerotier/ZeroTierOne.git
           VERSION=
           if [ -z "${{ inputs.VERSION }}" ]; then
@@ -82,7 +81,7 @@ jobs:
           registry: ${{ secrets.ACR_REGISTY }}
           username: ${{ secrets.ACR_USER }}
           password: ${{ secrets.ACR_PASS }}
-          
+
       # ======================
       # 6️⃣ Build & Push multi-arch
       # ======================
@@ -102,3 +101,5 @@ jobs:
             archie2016/zerotier-one:${{ env.VERSION }}
             ${{ secrets.ACR_REGISTY }}/osc-org/zerotier-one:latest
             ${{ secrets.ACR_REGISTY }}/osc-org/zerotier-one:${{ env.VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
