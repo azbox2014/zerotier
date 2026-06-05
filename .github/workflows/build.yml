@@ -68,6 +68,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GH_TOKEN }}
 
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          username: archie2016
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Login to ACR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ secrets.ACR_REGISTY }}
+          username: ${{ secrets.ACR_USER }}
+          password: ${{ secrets.ACR_PASS }}
+          
       # ======================
       # 6️⃣ Build & Push multi-arch
       # ======================
@@ -83,3 +98,7 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/zerotier-one:${{ env.VERSION }}
             ghcr.io/${{ github.repository_owner }}/zerotier-one:latest
+            archie2016/zerotier-one:latest
+            archie2016/zerotier-one:${{ env.VERSION }}
+            ${{ secrets.ACR_REGISTY }}/osc-org/zerotier-one:latest
+            ${{ secrets.ACR_REGISTY }}/osc-org/zerotier-one:${{ env.VERSION }}
