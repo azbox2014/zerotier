@@ -5,8 +5,15 @@ on:
     inputs:
       VERSION:
         description: "ZeroTierOne VERSION (e.g. 1.14.0)"
-        required: true
+        required: false
         default: "1.14.0"
+
+  pull_request:
+    branches:
+      - 'main'
+
+  schedule:
+    - cron: "30 2 * * *"
 
 env:
   REGISTRY: ghcr.io
@@ -29,7 +36,14 @@ jobs:
       - name: Clone ZeroTierOne
         run: |
           git clone https://github.com/zerotier/ZeroTierOne.git
-          cd ZeroTierOne
+          VERSION=
+          if [ -z "${{ inputs.VERSION }}" ]; then
+            cd ZeroTierOne
+            VERSION=$(git tag | grep -E '^[0-9]+(\.[0-9]+){2}$' | sort -rV | head -n 1)
+          else
+            VERSION=${{ inputs.VERSION }}
+          fi
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
       # ======================
       # 3️⃣ QEMU (multi-arch)
@@ -47,11 +61,35 @@ jobs:
       # 5️⃣ Login registry
       # ======================
       - name: Login to GHCR
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.AGH_TOKEN }}
+          password: ${{ secrets.GH_TOKEN }}
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          username: archie2016
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Login to ACR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ secrets.ACR_REGISTY }}
+          username: ${{ secrets.ACR_USER }}
+          password: ${{ secrets.ACR_PASS }}
+
+      - name: Log in to QCR Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.QCR_REGISTRY }}
+          username: ${{ secrets.QCR_USER }}
+          password: ${{ secrets.QCR_PASS }}
 
       # ======================
       # 6️⃣ Build & Push multi-arch
@@ -61,10 +99,18 @@ jobs:
         with:
           context: ZeroTierOne
           file: ZeroTierOne/Dockerfile.release
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64,linux/arm64
           build-args: |
-            VERSION=${{ inputs.VERSION }}
+            VERSION=${{ env.VERSION }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/zerotier-one:${{ inputs.VERSION }}
+            ghcr.io/${{ github.repository_owner }}/zerotier-one:${{ env.VERSION }}
             ghcr.io/${{ github.repository_owner }}/zerotier-one:latest
+            archie2016/zerotier-one:latest
+            archie2016/zerotier-one:${{ env.VERSION }}
+            ${{ secrets.ACR_REGISTY }}/osc-org/zerotier-one:latest
+            ${{ secrets.ACR_REGISTY }}/osc-org/zerotier-one:${{ env.VERSION }}
+            ${{ secrets.QCR_REGISTRY }}/osc-org/zerotier-one:latest
+            ${{ secrets.QCR_REGISTRY }}/osc-org/zerotier-one:${{ env.VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
