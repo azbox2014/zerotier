@@ -5,8 +5,15 @@ on:
     inputs:
       VERSION:
         description: "ZeroTierOne VERSION (e.g. 1.14.0)"
-        required: true
+        required: false
         default: "1.14.0"
+
+  pull_request:
+    branches:
+      - 'main'
+
+  schedule:
+    - cron: "30 2 * * *"
 
 env:
   REGISTRY: ghcr.io
@@ -28,8 +35,13 @@ jobs:
       # =========================
       - name: Clone ZeroTierOne
         run: |
-          git clone https://github.com/zerotier/ZeroTierOne.git
-          cd ZeroTierOne
+          if [[ -z ${{ inputs.VERSION }} ]]; then
+            git clone https://github.com/zerotier/ZeroTierOne.git
+            cd ZeroTierOne
+            echo "VERSION=$(git tag | sort -rV | head -n 1)" >> $GITHUB_ENV
+          else
+            echo "VERSION=${{ inputs.VERSION }}" >> $GITHUB_ENV
+          fi
 
       # ======================
       # 3️⃣ QEMU (multi-arch)
@@ -61,7 +73,7 @@ jobs:
         with:
           context: ZeroTierOne
           file: ZeroTierOne/Dockerfile.release
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64,linux/arm64
           build-args: |
             VERSION=${{ inputs.VERSION }}
