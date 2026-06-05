@@ -35,6 +35,7 @@ jobs:
       # =========================
       - name: Clone ZeroTierOne
         run: |
+          set -x
           if [ -z "${{ inputs.VERSION }}" ]; then
             git clone https://github.com/zerotier/ZeroTierOne.git
             cd ZeroTierOne
@@ -76,7 +77,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64,linux/arm64
           build-args: |
-            VERSION=${{ inputs.VERSION }}
+            VERSION=${{ env.VERSION }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/zerotier-one:${{ inputs.VERSION }}
+            ghcr.io/${{ github.repository_owner }}/zerotier-one:${{ env.VERSION }}
             ghcr.io/${{ github.repository_owner }}/zerotier-one:latest
