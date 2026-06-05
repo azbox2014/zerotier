@@ -35,7 +35,7 @@ jobs:
       # =========================
       - name: Clone ZeroTierOne
         run: |
-          if [[ -z ${{ inputs.VERSION }} ]]; then
+          if [ -z "${{ inputs.VERSION }}" ]; then
             git clone https://github.com/zerotier/ZeroTierOne.git
             cd ZeroTierOne
             echo "VERSION=$(git tag | sort -rV | head -n 1)" >> $GITHUB_ENV
